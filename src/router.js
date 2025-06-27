@@ -1,45 +1,64 @@
 import { marked } from 'marked';
 
-const files = import.meta.glob('./pages/*.md', { eager: true, query: '?raw', import: 'default' });
-const pagelist = document.getElementById('pagelist');
-const page = document.getElementById('page');
+document.addEventListener('DOMContentLoaded', async () => {
+  const linksContainer = document.getElementById('pagelist');
+  const pageContainer = document.getElementById('page');
+  
+  const DEFAULT_PAGE = '/pages/home.md';
+  
+  const markdownFiles = import.meta.glob('./pages/*.md', {
+    eager: true,
+    query: '?raw',
+    import: 'default'
+  });
+  
+  const files = Object.entries(markdownFiles).map(([path, content]) => {
+    return {
+      path,
+      name: path.split('/').pop().replace('.md', ''),
+      content
+    };
+  });
 
-document.addEventListener('DOMContentLoaded', () => {
-  Object.entries(files).map(async ([path, content]) => {
-    const filename = path.split('/').pop(); 
-    const pagename = filename.replace('.md', '');
-
+  files.forEach(file => {
     const link = document.createElement('a');
-    link.href = '#';
-    link.textContent = pagename;
+    link.href = `#${file.name}`;
+    link.textContent = file.name;
     link.addEventListener('click', (e) => {
       e.preventDefault();
-      page.innerHTML = marked.parse(content);
-      history.pushState(null, '', `#${pagename}`);
-      console.log(pagename);
-      console.log(filename);
+      loadPage(file.content);
+      history.pushState(null, '', `#${file.name}`);
     });
-  
-    pagelist.appendChild(link);
-  })
+    linksContainer.appendChild(link);
+    linksContainer.appendChild(document.createElement('br'));
+  });
+
+  const loadInitialPage = () => {
+    if (window.location.hash) {
+      const pageName = window.location.hash.slice(1);
+      const file = files.find(f => f.name === pageName);
+      if (file) return loadPage(file.content);
+    }
+    
+    const defaultFile = files.find(f => f.path.includes(DEFAULT_PAGE));
+    if (defaultFile) {
+      loadPage(defaultFile.content);
+      history.replaceState(null, '', '/'); 
+    } else if (files.length > 0) {
+      loadPage(files[0].content);
+    }
+  };
+
+  function loadPage(content) {
+    pageContainer.innerHTML = marked.parse(content);
+  }
 
   window.addEventListener('popstate', () => {
-    if (!window.location.hash) {
-      page.innerHTML = '';
-      return;
-    }
-    const pagename = window.location.hash.slice(1);
-    const matchingpath = Object.keys(files)
-      .find(path => path.endsWith(`/${pagename}.md`));
-    
-    if (matchingpath) {
-      page.innerHTML = marked.parse(files[matchingpath]);
+    if (!window.location.hash && DEFAULT_PAGE) {
+      const defaultFile = files.find(f => f.path.includes(DEFAULT_PAGE));
+      if (defaultFile) loadPage(defaultFile.content);
     }
   });
-});
 
-if (import.meta.hot) {
-  import.meta.hot.accept(() => {
-    console.log('Markdown files updated - reloading content');
-  });
-}
+  loadInitialPage();
+});

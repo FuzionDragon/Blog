@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "front-matter": "^4.0.2",
     "marked": "^15.0.12",
     "sass": "^1.89.2",
     "vite": "^7.0.0",
